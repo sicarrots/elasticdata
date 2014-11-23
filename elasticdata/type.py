@@ -37,34 +37,34 @@ class Type(MutableMapping):
         self._errors = {}
         self._scope = scope
 
-    def to_storage(self):
+    def to_storage(self, context=None):
         keys = self._get_keys()
         data = {}
         for key in keys:
-            func = getattr(self, 'repr_' + key, lambda val: val)
-            data[key] = func(self._data.get(key, None))
+            func = getattr(self, 'repr_' + key, lambda val, ctx: val)
+            data[key] = func(self._data.get(key, None), context)
         return data
 
-    def to_representation(self):
+    def to_representation(self, context=None):
         keys = self._get_keys()
         data = {}
         for key in keys:
-            func = getattr(self, 'get_' + key, lambda val: val)
-            data[key] = func(self._data.get(key, None))
+            func = getattr(self, 'get_' + key, lambda val, ctx: val)
+            data[key] = func(self._data.get(key, None), context)
         return data
 
-    def is_valid(self):
+    def is_valid(self, context=None):
         self._errors = {}
         keys = self._get_keys()
         for key in keys:
             if hasattr(self, 'validate_' + key):
                 try:
-                    getattr(self, 'validate_' + key)(self._data.get(key, None))
+                    getattr(self, 'validate_' + key)(self._data.get(key, None), context)
                 except ValidationError, e:
                     self.errors[key] = e
         if hasattr(self, 'validate'):
             try:
-                getattr(self, 'validate')(self._data)
+                getattr(self, 'validate')(self._data, context)
             except ValidationError, e:
                 self._errors['_general'] = e
         if self._errors:

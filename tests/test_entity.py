@@ -13,17 +13,17 @@ class TestType(Type):
             'large': ('foo', 'bar', 'baz')
         }
 
-    def repr_foo(self, value):
+    def repr_foo(self, value, context):
         return 'repr({value})'.format(value=value)
 
-    def get_foo(self, value):
+    def get_foo(self, value, context):
         return 'get({value})'.format(value=value)
 
-    def validate_bar(self, value):
+    def validate_bar(self, value, context):
         if value is None:
             raise ValidationError('bar cannot be None')
 
-    def validate(self, attributes):
+    def validate(self, attributes, context):
         if attributes.get('foo', None) != attributes.get('bar', None):
             raise ValidationError('foo must be bar')
 
@@ -34,6 +34,23 @@ class ExtendedTestType(TestType):
             'medium': ('foo', 'baz')
         }
         timestamps = True
+
+
+class ContextTestType(TestType):
+    def get_foo(self, value, context):
+        return context
+
+    def repr_foo(self, value, context):
+        return context
+
+    def validate_foo(self, value, context):
+        if not context:
+            raise ValidationError()
+
+    def validate(self, attributes, context):
+        if not context:
+            raise ValidationError()
+
 
 
 class TypeTestCase(TestCase):
@@ -113,3 +130,11 @@ class TypeTestCase(TestCase):
         self.assertFalse(te._meta['timestamps'])
         te2 = ExtendedTestType()
         self.assertTrue(te2._meta['timestamps'])
+
+    def test_passing_context(self):
+        te = ContextTestType({'foo': 'bar'})
+        self.assertDictEqual({'foo': 'value from context'}, te.to_representation('value from context'))
+        self.assertDictEqual({'foo': 'context'}, te.to_storage('context'))
+        self.assertFalse(te.is_valid(False))
+        self.assertEqual(len(te.errors), 2)
+        self.assertTrue(te.is_valid(True))
