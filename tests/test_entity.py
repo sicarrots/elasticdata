@@ -52,9 +52,7 @@ class ContextTestType(TestType):
             raise ValidationError()
 
 
-
 class TypeTestCase(TestCase):
-
     def setUp(self):
         self.DATA = {'foo': 'bar', 'bar': 'baz', 'baz': 'foo'}
 

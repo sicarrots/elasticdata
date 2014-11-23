@@ -88,7 +88,7 @@ class Type(MutableMapping):
     @classmethod
     def get_fields(cls, scope):
         if scope and scope in cls._meta['scopes']:
-            return cls._meta['scopes'][scope]
+            return filter(lambda f: f != 'id', cls._meta['scopes'][scope])
         return None
 
     @classmethod
