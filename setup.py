@@ -15,7 +15,8 @@ setup(
     install_requires=[
         'Django>=1.6.7,<1.7',
         'elasticsearch>=1.0.0,<2.0.0',
-        'six'
+        'six',
+        'dateutil'
     ],
     classifiers=[
         'Intended Audience :: Developers',

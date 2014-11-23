@@ -33,6 +33,7 @@ class ExtendedTestType(TestType):
         scopes = {
             'medium': ('foo', 'baz')
         }
+        timestamps = True
 
 
 class TypeTestCase(TestCase):
@@ -106,3 +107,9 @@ class TypeTestCase(TestCase):
         self.assertDictEqual(te_medium.to_storage(), {'foo': 'repr(bar)', 'baz': 'foo'})
         self.assertDictEqual(te_large.to_representation(), {'foo': 'get(bar)', 'bar': 'baz', 'baz': 'foo'})
         self.assertDictEqual(te_large.to_storage(), {'foo': 'repr(bar)', 'bar': 'baz', 'baz': 'foo'})
+
+    def test_timestamps(self):
+        te = TestType()
+        self.assertFalse(te._meta['timestamps'])
+        te2 = ExtendedTestType()
+        self.assertTrue(te2._meta['timestamps'])

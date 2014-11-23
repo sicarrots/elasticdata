@@ -19,6 +19,11 @@ class TestType(Type):
         }
 
 
+class TimestampsType(Type):
+    class Meta:
+        timestamps = True
+
+
 class HelpersTestCase(TestCase):
     def test_without(self):
         self.assertDictEqual({'key1': 1, 'key2': 2}, without(['key3'], {'key1': 1, 'key2': 2, 'key3': 3}))
@@ -252,5 +257,15 @@ class EntityManagerTestCase(TestCase):
         em.get_client().indices.refresh(index=self._index)
         fe = em2.query_one({'query': {'term': {'foo': {'value': 'bar'}}}}, TestType, scope='small')
         self.assertDictEqual({'foo': 'value'}, fe.to_representation())
+
+    def test_timestamps(self):
+        em = self.em
+        e = TimestampsType({'foo': 'bar'})
+        em.persist(e)
+        em.flush()
+        self.assertEqual(e['created_at'], e['updated_at'])
+        e['baz'] = 'bar'
+        em.flush()
+        self.assertTrue(e['created_at'] < e['updated_at'])
 
     #  TODO: test get_repository

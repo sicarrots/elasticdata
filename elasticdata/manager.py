@@ -5,6 +5,7 @@ from collections import OrderedDict
 from importlib import import_module
 from django.conf import settings
 from elasticsearch import Elasticsearch, helpers, TransportError
+from datetime import datetime
 
 from .repository import BaseRepository
 
@@ -67,6 +68,10 @@ class PersistedEntity(object):
         self._entity['id'] = _id
 
     def _add(self):
+        if self._entity._meta['timestamps']:
+            now = datetime.now()
+            self._entity['created_at'] = now
+            self._entity['updated_at'] = now
         source = self._entity.to_storage()
         stmt = {
             '_index': self._index,
@@ -83,6 +88,8 @@ class PersistedEntity(object):
     def _update(self):
         if 'id' not in self._entity:
             return None
+        if self._entity._meta['timestamps']:
+            self._entity['updated_at'] = datetime.now()
         diff = self._update_diff()
         if not diff:
             return None

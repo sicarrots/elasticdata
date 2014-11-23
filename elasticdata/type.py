@@ -4,6 +4,7 @@ from __future__ import unicode_literals, absolute_import
 from collections import MutableMapping
 from abc import ABCMeta
 from six import add_metaclass
+from dateutil.parser import parse
 
 
 class ValidationError(Exception):
@@ -12,12 +13,19 @@ class ValidationError(Exception):
 
 class TypeMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
-        meta = {'scopes': dict()}
+        meta = {'scopes': dict(), 'timestamps': False}
         for base in bases:
             if hasattr(base, '_meta'):
                 meta.update(base._meta)
-        if 'Meta' in attrs and hasattr(attrs['Meta'], 'scopes'):
-            meta['scopes'].update(attrs['Meta'].scopes)
+        if 'Meta' in attrs:
+            if hasattr(attrs['Meta'], 'scopes'):
+                meta['scopes'].update(attrs['Meta'].scopes)
+            if hasattr(attrs['Meta'], 'timestamps'):
+                def coerce_timestamp(value):
+                    return parse(value)
+                meta['timestamps'] = attrs['Meta'].timestamps
+                attrs['get_created_at'] = coerce_timestamp
+                attrs['get_updated_at'] = coerce_timestamp
         attrs['_meta'] = meta
         return super(TypeMeta, mcs).__new__(mcs, name, bases, attrs)
 
