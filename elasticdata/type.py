@@ -17,12 +17,13 @@ class TypeMeta(ABCMeta):
         for base in bases:
             if hasattr(base, '_meta'):
                 meta.update(base._meta)
+                if hasattr(base._meta, 'timestamps'):
+                    meta['timestamps'] = base._meta.timestamps
         if 'Meta' in attrs:
             if hasattr(attrs['Meta'], 'scopes'):
                 meta['scopes'].update(attrs['Meta'].scopes)
             if hasattr(attrs['Meta'], 'timestamps'):
-                def coerce_timestamp(value):
-                    return parse(value)
+                coerce_timestamp = lambda value: parse(value)
                 meta['timestamps'] = attrs['Meta'].timestamps
                 attrs['get_created_at'] = coerce_timestamp
                 attrs['get_updated_at'] = coerce_timestamp

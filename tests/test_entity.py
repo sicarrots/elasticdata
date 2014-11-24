@@ -36,6 +36,10 @@ class ExtendedTestType(TestType):
         timestamps = True
 
 
+class InheritedTimestampsTestType(ExtendedTestType):
+    pass
+
+
 class ContextTestType(TestType):
     def get_foo(self, value, context):
         return context
@@ -128,6 +132,8 @@ class TypeTestCase(TestCase):
         self.assertFalse(te._meta['timestamps'])
         te2 = ExtendedTestType()
         self.assertTrue(te2._meta['timestamps'])
+        te3 = InheritedTimestampsTestType()
+        self.assertTrue(te3._meta['timestamps'])
 
     def test_passing_context(self):
         te = ContextTestType({'foo': 'bar'})
