@@ -11,7 +11,7 @@ from elasticdata.manager import without, PersistedEntity, EntityManager, UPDATE,
 from elasticdata import Type, TimestampedType
 
 
-class TestType(Type):
+class ManagerTestType(Type):
     class Meta:
         scopes = {
             'all': ('foo', 'bar'),
@@ -30,21 +30,23 @@ class HelpersTestCase(TestCase):
 
 class PersistedEntityTestCase(TestCase):
     def test_new_entity(self):
-        e = TestType({'foo': 'bar'})
+        e = ManagerTestType({'foo': 'bar'})
         pe = PersistedEntity(e)
-        self.assertDictEqual(pe.get_stmt(), {'_index': 'default', '_source': {'foo': 'bar'}, '_type': 'testtype'})
-        e = TestType({'foo': 'bar', 'id': 1})
+        self.assertDictEqual(pe.get_stmt(), {'_index': 'default', '_source': {'foo': 'bar'},
+                                             '_type': 'managertesttype'})
+        e = ManagerTestType({'foo': 'bar', 'id': 1})
         pe = PersistedEntity(e)
         self.assertDictEqual(pe.get_stmt(),
-                             {'_index': 'default', '_source': {'foo': 'bar'}, '_type': 'testtype', '_id': 1})
-        e = TestType({'foo': 'bar', 'id': 1, '_parent': '2'})
+                             {'_index': 'default', '_source': {'foo': 'bar'}, '_type': 'managertesttype',
+                              '_id': 1})
+        e = ManagerTestType({'foo': 'bar', 'id': 1, '_parent': '2'})
         pe = PersistedEntity(e)
         self.assertDictEqual(pe.get_stmt(),
                              {'_index': 'default', '_source': {'foo': 'bar'},
-                              '_type': 'testtype', '_id': 1, '_parent': '2'})
+                              '_type': 'managertesttype', '_id': 1, '_parent': '2'})
 
     def test_update_entity(self):
-        e = TestType({'foo': 'bar', 'id': 1})
+        e = ManagerTestType({'foo': 'bar', 'id': 1})
         pe = PersistedEntity(e, state=UPDATE)
         self.assertIsNone(pe.get_stmt())
         e['bar'] = 'baz'
@@ -52,7 +54,7 @@ class PersistedEntityTestCase(TestCase):
             '_id': 1,
             '_index': 'default',
             '_op_type': 'update',
-            '_type': 'testtype',
+            '_type': 'managertesttype',
             'doc': {'bar': 'baz'}
         })
         pe.reset_state()
@@ -62,7 +64,7 @@ class PersistedEntityTestCase(TestCase):
             '_id': 1,
             '_index': 'default',
             '_op_type': 'update',
-            '_type': 'testtype',
+            '_type': 'managertesttype',
             'doc': {'foo': 'baz'}
         })
         pe.reset_state()
@@ -72,7 +74,7 @@ class PersistedEntityTestCase(TestCase):
             '_id': 1,
             '_index': 'default',
             '_op_type': 'update',
-            '_type': 'testtype',
+            '_type': 'managertesttype',
             'doc': {'bar': None}
         })
         pe.reset_state()
@@ -81,16 +83,16 @@ class PersistedEntityTestCase(TestCase):
         self.assertIsNone(pe.get_stmt())
 
     def test_delete_entity(self):
-        e = TestType({'foo': 'bar'})
+        e = ManagerTestType({'foo': 'bar'})
         pe = PersistedEntity(e, state=REMOVE)
         self.assertIsNone(pe.get_stmt())
-        e = TestType({'foo': 'bar', 'id': '1'})
+        e = ManagerTestType({'foo': 'bar', 'id': '1'})
         pe = PersistedEntity(e, state=REMOVE)
         self.assertDictEqual(pe.get_stmt(), {
             '_id': '1',
             '_index': 'default',
             '_op_type': 'delete',
-            '_type': 'testtype'
+            '_type': 'managertesttype'
         })
 
 
@@ -110,10 +112,10 @@ class EntityManagerTestCase(TestCase):
 
     def test_persist(self):
         em = self.em
-        e = TestType({'foo': 'bar'})
+        e = ManagerTestType({'foo': 'bar'})
         em.persist(e)
         self.assertEqual(len(em._registry), 1)
-        e2 = TestType({'bar': 'baz'})
+        e2 = ManagerTestType({'bar': 'baz'})
         em.persist(e2)
         self.assertEqual(len(em._registry), 2)
         em.persist(e)
@@ -122,7 +124,7 @@ class EntityManagerTestCase(TestCase):
 
     def test_remove(self):
         em = self.em
-        e = TestType({'foo': 'bar'})
+        e = ManagerTestType({'foo': 'bar'})
         em.persist(e)
         self.assertEqual(em._registry.values()[0].state, ADD)
         em.remove(e)
@@ -130,9 +132,9 @@ class EntityManagerTestCase(TestCase):
 
     def test_flush(self):
         em = self.em
-        e = TestType({'foo': 'bar'})
+        e = ManagerTestType({'foo': 'bar'})
         em.persist(e)
-        e2 = TestType({'bar': 'baz'})
+        e2 = ManagerTestType({'bar': 'baz'})
         em.persist(e2)
         em.flush()
         self.assertTrue('id' in e)
@@ -145,100 +147,100 @@ class EntityManagerTestCase(TestCase):
     def test_find(self):
         em = self.em
         em2 = self.em
-        e = TestType({'foo': 'bar'})
+        e = ManagerTestType({'foo': 'bar'})
         em.persist(e)
         em.flush()
-        fe = em2.find(e['id'], TestType)
+        fe = em2.find(e['id'], ManagerTestType)
         self.assertDictEqual(e.to_representation(), fe.to_representation())
-        self.assertRaises(EntityNotFound, em2.find, 'non-exists', TestType)
+        self.assertRaises(EntityNotFound, em2.find, 'non-exists', ManagerTestType)
 
     def test_find_updated(self):
         em = self.em
         em2 = self.em
-        e = TestType({'foo': 'bar'})
+        e = ManagerTestType({'foo': 'bar'})
         em.persist(e)
         em.flush()
         e['bar'] = 'baz'
         em.flush()
-        fe = em2.find(e['id'], TestType)
+        fe = em2.find(e['id'], ManagerTestType)
         self.assertDictEqual(e.to_representation(), fe.to_representation())
 
     def test_find_many(self):
         em = self.em
         em2 = self.em
-        e = TestType({'foo': 'bar'})
-        e2 = TestType({'bar': 'baz'})
+        e = ManagerTestType({'foo': 'bar'})
+        e2 = ManagerTestType({'bar': 'baz'})
         em.persist(e)
         em.persist(e2)
         em.flush()
-        fe = em2.find_many([e['id'], e2['id']], TestType)
+        fe = em2.find_many([e['id'], e2['id']], ManagerTestType)
         self.assertDictEqual(e.to_representation(), fe[0].to_representation())
         self.assertDictEqual(e2.to_representation(), fe[1].to_representation())
 
     def test_query(self):
         em = self.em
         em2 = self.em
-        e = TestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
-        e2 = TestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
-        e3 = TestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
+        e = ManagerTestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
+        e2 = ManagerTestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
+        e3 = ManagerTestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
         em.persist(e)
         em.persist(e2)
         em.persist(e3)
         em.flush()
         em.get_client().indices.refresh(index=self._index)
-        fe, meta = em2.query({'query': {'term': {'foo': {'value': 'value'}}}}, TestType)
+        fe, meta = em2.query({'query': {'term': {'foo': {'value': 'value'}}}}, ManagerTestType)
         self.assertEqual(len(fe), 3)
 
     def test_query_one(self):
         em = self.em
         em2 = self.em
-        e = TestType({'foo': 'bar'})
+        e = ManagerTestType({'foo': 'bar'})
         em.persist(e)
         em.flush()
         em.get_client().indices.refresh(index=self._index)
-        fe = em2.query_one({'query': {'term': {'foo': {'value': 'bar'}}}}, TestType)
+        fe = em2.query_one({'query': {'term': {'foo': {'value': 'bar'}}}}, ManagerTestType)
         self.assertEqual(fe['id'], e['id'])
-        e2 = TestType({'foo': 'bar'})
+        e2 = ManagerTestType({'foo': 'bar'})
         em.persist(e2)
         em.flush()
         em.get_client().indices.refresh(index=self._index)
-        self.assertRaises(RepositoryError, em2.query_one, {'query': {'term': {'foo': {'value': 'bar'}}}}, TestType)
+        self.assertRaises(RepositoryError, em2.query_one, {'query': {'term': {'foo': {'value': 'bar'}}}}, ManagerTestType)
 
     def test_find_scope(self):
         em = self.em
         em2 = self.em
-        e = TestType({'foo': 'bar', 'bar': 'baz'})
+        e = ManagerTestType({'foo': 'bar', 'bar': 'baz'})
         em.persist(e)
         em.flush()
-        fe = em2.find(e['id'], TestType, scope='all')
+        fe = em2.find(e['id'], ManagerTestType, scope='all')
         self.assertDictEqual({'foo': 'bar', 'bar': 'baz'}, fe.to_representation())
-        fe2 = em2.find(e['id'], TestType, scope='small')
+        fe2 = em2.find(e['id'], ManagerTestType, scope='small')
         self.assertDictEqual({'foo': 'bar'}, fe2.to_representation())
 
     def test_find_many_scope(self):
         em = self.em
         em2 = self.em
-        e = TestType({'foo': 'bar', 'bar': 'baz'})
-        e2 = TestType({'foo': 'bar', 'bar': 'baz'})
+        e = ManagerTestType({'foo': 'bar', 'bar': 'baz'})
+        e2 = ManagerTestType({'foo': 'bar', 'bar': 'baz'})
         em.persist(e)
         em.persist(e2)
         em.flush()
-        fe = em2.find_many([e['id'], e2['id']], TestType, scope='small')
+        fe = em2.find_many([e['id'], e2['id']], ManagerTestType, scope='small')
         self.assertDictEqual({'foo': 'bar'}, fe[0].to_representation())
         self.assertDictEqual({'foo': 'bar'}, fe[1].to_representation())
 
     def test_query_scope(self):
         em = self.em
         em2 = self.em
-        e = TestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
-        e2 = TestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
-        e3 = TestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
+        e = ManagerTestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
+        e2 = ManagerTestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
+        e3 = ManagerTestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
         em.persist(e)
         em.persist(e2)
         em.persist(e3)
         em.flush()
         em.get_client().indices.refresh(index=self._index)
-        fe, meta = em2.query({'query': {'term': {'foo': {'value': 'value'}}}}, TestType, scope='small')
+        fe, meta = em2.query({'query': {'term': {'foo': {'value': 'value'}}}}, ManagerTestType, scope='small')
         self.assertDictEqual({'foo': 'value'}, fe[0].to_representation())
         self.assertDictEqual({'foo': 'value'}, fe[1].to_representation())
         self.assertDictEqual({'foo': 'value'}, fe[2].to_representation())
@@ -246,11 +248,11 @@ class EntityManagerTestCase(TestCase):
     def test_query_one_scope(self):
         em = self.em
         em2 = self.em
-        e = TestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
+        e = ManagerTestType({'foo': 'value', 'bar': 'baz', 'baz': 'foo'})
         em.persist(e)
         em.flush()
         em.get_client().indices.refresh(index=self._index)
-        fe = em2.query_one({'query': {'term': {'foo': {'value': 'bar'}}}}, TestType, scope='small')
+        fe = em2.query_one({'query': {'term': {'foo': {'value': 'bar'}}}}, ManagerTestType, scope='small')
         self.assertDictEqual({'foo': 'value'}, fe.to_representation())
 
     def test_timestamps(self):

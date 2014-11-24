@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals, absolute_import
 
+import copy
 from collections import MutableMapping
 from abc import ABCMeta
 from six import add_metaclass
@@ -27,7 +28,7 @@ class TypeMeta(ABCMeta):
                 meta['timestamps'] = attrs['Meta'].timestamps
                 attrs['get_created_at'] = coerce_timestamp
                 attrs['get_updated_at'] = coerce_timestamp
-        attrs['_meta'] = meta
+        attrs['_meta'] = copy.deepcopy(meta)
         return super(TypeMeta, mcs).__new__(mcs, name, bases, attrs)
 
 
