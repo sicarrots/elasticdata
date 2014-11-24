@@ -40,7 +40,6 @@ class EntityNotFound(RepositoryError):
 
 
 class PersistedEntity(object):
-
     def __init__(self, entity, state=ADD, index='default'):
         self._initial_value = None
         self._entity = entity
@@ -74,6 +73,7 @@ class PersistedEntity(object):
             self._entity['updated_at'] = now
         source = self._entity.to_storage()
         stmt = {
+            '_op_type': 'create',
             '_index': self._index,
             '_type': self._entity.type,
         }
@@ -147,11 +147,13 @@ class EntityManager(object):
             stmt = pe.get_stmt()
             if stmt:
                 actions[pe] = stmt
+        self._execute_callbacks(actions, 'pre')
         blk = [result for result in helpers.streaming_bulk(self.es, actions.itervalues())]  # TODO: exceptions?
         for i, pe in enumerate(actions.iterkeys()):
             if 'create' in blk[i][1]:
                 pe.set_id(blk[i][1]['create']['_id'])
             pe.reset_state()
+        self._execute_callbacks(actions, 'post')
 
     def find(self, _id, _type, scope=None):
         kwargs = {'id': _id, 'index': self._index, 'doc_type': _type.get_type()}
@@ -209,6 +211,9 @@ class EntityManager(object):
             return entities[0]
         raise RepositoryError('Expected one result, found {num}'.format(num=len(entities)))
 
+    def clear(self):
+        self._registry = {}
+
     def get_repository(self, repository):
         app, repository_class_name = repository.split(':')
         if app not in settings.INSTALLED_APPS:
@@ -220,9 +225,10 @@ class EntityManager(object):
         except ImportError:
             raise RepositoryError('Given application {app} has no repositories'.format(app=app))
         if not hasattr(module, repository_class_name):
-            raise RepositoryError('Given repository {repository_class_name} does not exists in application {app}'.format(
-                repository_class_name=repository_class_name, app=app
-            ))
+            raise RepositoryError(
+                'Given repository {repository_class_name} does not exists in application {app}'.format(
+                    repository_class_name=repository_class_name, app=app
+                ))
         repository_class = getattr(module, repository_class_name)
         if not isinstance(repository_class, BaseRepository):
             raise RepositoryError('Custom repository must be subclass of BaseRepository')
@@ -236,3 +242,11 @@ class EntityManager(object):
             self._registry[id(entity)].state = state
         else:
             self._registry[id(entity)] = PersistedEntity(entity, state=state, index=self._index)
+
+    def _execute_callbacks(self, actions, type):
+        for persisted_entity, stmt in actions.iteritems():
+            action = stmt['_op_type']
+            callback_func_name = type + '_' + action
+            if hasattr(persisted_entity._entity, callback_func_name):
+                getattr(persisted_entity._entity, callback_func_name)(self)
+

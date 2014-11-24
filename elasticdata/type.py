@@ -14,7 +14,10 @@ class ValidationError(Exception):
 
 class TypeMeta(ABCMeta):
     def __new__(mcs, name, bases, attrs):
-        meta = {'scopes': dict(), 'timestamps': False}
+        meta = {
+            'scopes': dict(),
+            'timestamps': False,
+        }
         for base in bases:
             if hasattr(base, '_meta'):
                 meta.update(base._meta)

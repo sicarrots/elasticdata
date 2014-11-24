@@ -4,10 +4,19 @@ from __future__ import unicode_literals
 import random
 import string
 from unittest import TestCase
+from mock import patch
 from elasticsearch import Elasticsearch
 
-from elasticdata.manager import without, PersistedEntity, EntityManager, UPDATE, REMOVE, ADD, RepositoryError,\
+from elasticdata.manager import (
+    without,
+    PersistedEntity,
+    EntityManager,
+    UPDATE,
+    REMOVE,
+    ADD,
+    RepositoryError,
     EntityNotFound
+)
 from elasticdata import Type, TimestampedType
 
 
@@ -17,6 +26,26 @@ class ManagerTestType(Type):
             'all': ('foo', 'bar'),
             'small': ('foo', )
         }
+
+
+class ManagerCallbacksTestType(Type):
+    def pre_create(self, em):
+        pass
+
+    def pre_update(self, em):
+        pass
+
+    def pre_delete(self, em):
+        pass
+
+    def post_create(self, em):
+        pass
+
+    def post_update(self, em):
+        pass
+
+    def post_delete(self, em):
+        pass
 
 
 class HelpersTestCase(TestCase):
@@ -33,17 +62,17 @@ class PersistedEntityTestCase(TestCase):
         e = ManagerTestType({'foo': 'bar'})
         pe = PersistedEntity(e)
         self.assertDictEqual(pe.get_stmt(), {'_index': 'default', '_source': {'foo': 'bar'},
-                                             '_type': 'managertesttype'})
+                                             '_type': 'managertesttype', '_op_type': 'create'})
         e = ManagerTestType({'foo': 'bar', 'id': 1})
         pe = PersistedEntity(e)
         self.assertDictEqual(pe.get_stmt(),
                              {'_index': 'default', '_source': {'foo': 'bar'}, '_type': 'managertesttype',
-                              '_id': 1})
+                              '_id': 1, '_op_type': 'create'})
         e = ManagerTestType({'foo': 'bar', 'id': 1, '_parent': '2'})
         pe = PersistedEntity(e)
         self.assertDictEqual(pe.get_stmt(),
                              {'_index': 'default', '_source': {'foo': 'bar'},
-                              '_type': 'managertesttype', '_id': 1, '_parent': '2'})
+                              '_type': 'managertesttype', '_id': 1, '_parent': '2', '_op_type': 'create'})
 
     def test_update_entity(self):
         e = ManagerTestType({'foo': 'bar', 'id': 1})
@@ -265,4 +294,58 @@ class EntityManagerTestCase(TestCase):
         em.flush()
         self.assertTrue(e['created_at'] < e['updated_at'])
 
-    #  TODO: test get_repository
+    def test_pre_create_callback(self):
+        with patch.object(ManagerCallbacksTestType, 'pre_create') as mock:
+            em = self.em
+            e = ManagerCallbacksTestType({'foo': 'bar'})
+            em.persist(e)
+            em.flush()
+            mock.assert_called_with(em)
+
+    def test_post_create_callback(self):
+        with patch.object(ManagerCallbacksTestType, 'post_create') as mock:
+            em = self.em
+            e = ManagerCallbacksTestType({'foo': 'bar'})
+            em.persist(e)
+            em.flush()
+            mock.assert_called_with(em)
+
+    def test_pre_update_callback(self):
+        with patch.object(ManagerCallbacksTestType, 'pre_update') as mock:
+            em = self.em
+            e = ManagerCallbacksTestType({'foo': 'bar'})
+            em.persist(e)
+            em.flush()
+            e['bar'] = 'baz'
+            em.flush()
+            mock.assert_called_with(em)
+
+    def test_post_update_callback(self):
+        with patch.object(ManagerCallbacksTestType, 'post_update') as mock:
+            em = self.em
+            e = ManagerCallbacksTestType({'foo': 'bar'})
+            em.persist(e)
+            em.flush()
+            e['bar'] = 'baz'
+            em.flush()
+            mock.assert_called_with(em)
+
+    def test_pre_delete_callback(self):
+        with patch.object(ManagerCallbacksTestType, 'pre_delete') as mock:
+            em = self.em
+            e = ManagerCallbacksTestType({'foo': 'bar'})
+            em.persist(e)
+            em.flush()
+            em.remove(e)
+            em.flush()
+            mock.assert_called_with(em)
+
+    def test_post_delete_callback(self):
+        with patch.object(ManagerCallbacksTestType, 'post_delete') as mock:
+            em = self.em
+            e = ManagerCallbacksTestType({'foo': 'bar'})
+            em.persist(e)
+            em.flush()
+            em.remove(e)
+            em.flush()
+            mock.assert_called_with(em)

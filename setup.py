@@ -18,6 +18,7 @@ setup(
         'six',
         'python-dateutil'
     ],
+    test_requires=['mock'],
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
