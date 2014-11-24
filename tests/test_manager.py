@@ -349,3 +349,11 @@ class EntityManagerTestCase(TestCase):
             em.remove(e)
             em.flush()
             mock.assert_called_with(em)
+
+    def test_clear(self):
+        em = self.em
+        e = ManagerTestType({'foo': 'bar'})
+        em.persist(e)
+        self.assertEqual(len(em._registry), 1)
+        em.clear()
+        self.assertEqual(len(em._registry), 0)
