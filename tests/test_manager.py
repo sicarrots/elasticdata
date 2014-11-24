@@ -8,7 +8,7 @@ from elasticsearch import Elasticsearch
 
 from elasticdata.manager import without, PersistedEntity, EntityManager, UPDATE, REMOVE, ADD, RepositoryError,\
     EntityNotFound
-from elasticdata import Type
+from elasticdata import Type, TimestampedType
 
 
 class TestType(Type):
@@ -17,11 +17,6 @@ class TestType(Type):
             'all': ('foo', 'bar'),
             'small': ('foo', )
         }
-
-
-class TimestampsType(Type):
-    class Meta:
-        timestamps = True
 
 
 class HelpersTestCase(TestCase):
@@ -260,7 +255,7 @@ class EntityManagerTestCase(TestCase):
 
     def test_timestamps(self):
         em = self.em
-        e = TimestampsType({'foo': 'bar'})
+        e = TimestampedType({'foo': 'bar'})
         em.persist(e)
         em.flush()
         self.assertEqual(e['created_at'], e['updated_at'])

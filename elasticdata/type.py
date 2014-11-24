@@ -115,3 +115,8 @@ class Type(MutableMapping):
         if self._scope and self._scope in self._meta['scopes']:
             return self._meta['scopes'][self._scope]
         return filter(lambda key: not key.startswith('_'), self._data.keys())
+
+
+class TimestampedType(Type):
+    class Meta:
+        timestamps = True

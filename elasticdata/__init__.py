@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 from django.conf import settings
 from elasticsearch import Elasticsearch
 
-from .type import Type, ValidationError
+from .type import Type, TimestampedType, ValidationError
 from .manager import EntityManager, RepositoryError, EntityNotFound
 
 

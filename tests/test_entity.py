@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 from unittest import TestCase
 
-from elasticdata import Type, ValidationError
+from elasticdata import Type, TimestampedType, ValidationError
 
 
 class TestType(Type):
@@ -36,7 +36,7 @@ class ExtendedTestType(TestType):
         timestamps = True
 
 
-class InheritedTimestampsTestType(ExtendedTestType):
+class InheritedTimestampsTestType(TimestampedType):
     pass
 
 
