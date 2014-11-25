@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 
 import six
-from collections import OrderedDict
 from importlib import import_module
 from django.conf import settings
 from elasticsearch import Elasticsearch, helpers, TransportError
@@ -59,9 +58,9 @@ class PersistedEntity(object):
     def __init__(self, entity, state=ADD, index='default'):
         self._initial_value = None
         self._entity = entity
+        self.state = self.last_state = state
         if state == UPDATE:
             self.reset_state()
-        self.state = state
         self._index = index
         self._diff = None
 
@@ -95,6 +94,7 @@ class PersistedEntity(object):
         self._initial_value = self._entity.to_storage()
         if 'id' in self._initial_value:
             del self._initial_value['id']
+        self.last_state = self.state
         self.state = UPDATE  # TODO what when item is removed?
         self._diff = None
 
@@ -183,9 +183,9 @@ class EntityManager(object):
         for i, persisted_entity in enumerate(actions):
             if 'create' in bulk_results[i][1]:
                 persisted_entity.set_id(bulk_results[i][1]['create']['_id'])
-        self._execute_callbacks(actions, 'post')
         for action in actions:
             action.reset_state()
+        self._execute_callbacks(actions, 'post')
 
     def find(self, _id, _type, scope=None):
         kwargs = {'id': _id, 'index': self._index, 'doc_type': _type.get_type()}
@@ -277,7 +277,11 @@ class EntityManager(object):
 
     def _execute_callbacks(self, actions, type):
         for persisted_entity in actions:
-            action = persisted_entity.stmt['_op_type']
+            if type == 'pre':
+                attr = 'state'
+            else:
+                attr = 'last_state'
+            action = {ADD: 'create', UPDATE: 'update', REMOVE: 'delete'}[getattr(persisted_entity, attr)]
             callback_func_name = type + '_' + action
             if hasattr(persisted_entity._entity, callback_func_name):
                 getattr(persisted_entity._entity, callback_func_name)(self)
