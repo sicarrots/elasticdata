@@ -28,7 +28,7 @@ class TypeMeta(ABCMeta):
             if hasattr(attrs['Meta'], 'scopes'):
                 meta['scopes'].update(attrs['Meta'].scopes)
             if hasattr(attrs['Meta'], 'timestamps'):
-                coerce_timestamp = lambda value: parse(value)
+                coerce_timestamp = lambda self, value, context: parse(value)
                 meta['timestamps'] = attrs['Meta'].timestamps
                 attrs['get_created_at'] = coerce_timestamp
                 attrs['get_updated_at'] = coerce_timestamp
