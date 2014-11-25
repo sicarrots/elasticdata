@@ -9,6 +9,7 @@ from elasticsearch import Elasticsearch
 
 from elasticdata.manager import (
     without,
+    group,
     PersistedEntity,
     EntityManager,
     UPDATE,
@@ -56,23 +57,31 @@ class HelpersTestCase(TestCase):
                                      {'key1': 1, 'key2': 2, 'key3': {'key4': 4}},
                                      move_up={'key3': ['key4']}))
 
+    def test_group(self):
+        type_getter = lambda item: item['type']
+        data = [{'type': 'a'}, {'type': 'a'}, {'type': 'b'}]
+        grouped_data = group(data, type_getter)
+        self.assertEqual(len(grouped_data['a']), 2)
+        self.assertEqual(len(grouped_data['b']), 1)
+        self.assertListEqual(grouped_data.keys(), ['a', 'b'])
+
 
 class PersistedEntityTestCase(TestCase):
     def test_new_entity(self):
         e = ManagerTestType({'foo': 'bar'})
         pe = PersistedEntity(e)
         self.assertDictEqual(pe.get_stmt(), {'_index': 'default', '_source': {'foo': 'bar'},
-                                             '_type': 'managertesttype', '_op_type': 'create'})
+                                             '_type': 'manager_test_type', '_op_type': 'create'})
         e = ManagerTestType({'foo': 'bar', 'id': 1})
         pe = PersistedEntity(e)
         self.assertDictEqual(pe.get_stmt(),
-                             {'_index': 'default', '_source': {'foo': 'bar'}, '_type': 'managertesttype',
+                             {'_index': 'default', '_source': {'foo': 'bar'}, '_type': 'manager_test_type',
                               '_id': 1, '_op_type': 'create'})
         e = ManagerTestType({'foo': 'bar', 'id': 1, '_parent': '2'})
         pe = PersistedEntity(e)
         self.assertDictEqual(pe.get_stmt(),
                              {'_index': 'default', '_source': {'foo': 'bar'},
-                              '_type': 'managertesttype', '_id': 1, '_parent': '2', '_op_type': 'create'})
+                              '_type': 'manager_test_type', '_id': 1, '_parent': '2', '_op_type': 'create'})
 
     def test_update_entity(self):
         e = ManagerTestType({'foo': 'bar', 'id': 1})
@@ -83,7 +92,7 @@ class PersistedEntityTestCase(TestCase):
             '_id': 1,
             '_index': 'default',
             '_op_type': 'update',
-            '_type': 'managertesttype',
+            '_type': 'manager_test_type',
             'doc': {'bar': 'baz'}
         })
         pe.reset_state()
@@ -93,7 +102,7 @@ class PersistedEntityTestCase(TestCase):
             '_id': 1,
             '_index': 'default',
             '_op_type': 'update',
-            '_type': 'managertesttype',
+            '_type': 'manager_test_type',
             'doc': {'foo': 'baz'}
         })
         pe.reset_state()
@@ -103,7 +112,7 @@ class PersistedEntityTestCase(TestCase):
             '_id': 1,
             '_index': 'default',
             '_op_type': 'update',
-            '_type': 'managertesttype',
+            '_type': 'manager_test_type',
             'doc': {'bar': None}
         })
         pe.reset_state()
@@ -121,7 +130,7 @@ class PersistedEntityTestCase(TestCase):
             '_id': '1',
             '_index': 'default',
             '_op_type': 'delete',
-            '_type': 'managertesttype'
+            '_type': 'manager_test_type'
         })
 
 

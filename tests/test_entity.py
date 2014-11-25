@@ -97,9 +97,9 @@ class TypeTestCase(TestCase):
 
     def test_type(self):
         te = TestType()
-        self.assertEqual(te.type, 'testtype')
+        self.assertEqual(te.type, 'test_type')
         ete = ExtendedTestType()
-        self.assertEqual(ete.type, 'extendedtesttype')
+        self.assertEqual(ete.type, 'extended_test_type')
 
     def test_scope(self):
         te_small = TestType(self.DATA, scope='small')

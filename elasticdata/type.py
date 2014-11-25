@@ -6,6 +6,7 @@ from collections import MutableMapping
 from abc import ABCMeta
 from six import add_metaclass
 from dateutil.parser import parse
+from inflection import underscore
 
 
 class ValidationError(Exception):
@@ -82,7 +83,7 @@ class Type(MutableMapping):
 
     @property
     def type(self):
-        return self.__class__.__name__.lower()
+        return underscore(self.__class__.__name__).lower()
 
     @property
     def fields(self):
@@ -98,7 +99,7 @@ class Type(MutableMapping):
 
     @classmethod
     def get_type(cls):
-        return cls.__name__.lower()
+        return underscore(cls.__name__).lower()
 
     def __getitem__(self, item):
         return self._data[item]

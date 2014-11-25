@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import six
 from collections import OrderedDict
 from importlib import import_module
 from django.conf import settings
@@ -12,20 +13,35 @@ from .repository import BaseRepository
 ADD, UPDATE, REMOVE = range(3)
 
 
-def without(keys, dct, move_up=None):
-    """Returns dictionary without listed keys
+def group(data, type_getter):
+    """ Group items from iterable by type returned by type_getter on item
+        :param data: iterable with items
+        :param type_getter: callable for getting type from item
+    """
+    grouped = {}
+    for item in data:
+        key = type_getter(item)
+        if key in grouped:
+            grouped[key].append(item)
+        else:
+            grouped[key] = [item]
+    return grouped
 
-    Optionally can move up keys from nested dictionary to parent before removing key.
-    :param keys: list of keys to remove
-    :param dct: dictionary to perform removing
-    :param move_up: definiton of keys which should be moved to parent
+
+def without(keys, dct, move_up=None):
+    """ Returns dictionary without listed keys
+
+        Optionally can move up keys from nested dictionary to parent before removing key.
+        :param keys: list of keys to remove
+        :param dct: dictionary to perform removing
+        :param move_up: definiton of keys which should be moved to parent
     """
     _dct = dct.copy()
     if move_up:
-        for k, v in move_up.iteritems():
+        for k, v in six.iteritems(move_up):
             for moved_key in v:
                 _dct[moved_key] = _dct[k][moved_key]
-    return {k: v for k, v in _dct.iteritems() if k not in keys}
+    return {k: v for k, v in six.iteritems(_dct) if k not in keys}
 
 
 class RepositoryError(Exception):
@@ -116,7 +132,7 @@ class PersistedEntity(object):
         if 'id' in current_state:
             del current_state['id']
         diff = {}
-        for k, v in current_state.iteritems():
+        for k, v in six.iteritems(current_state):
             if (k not in self._initial_value) or (k in self._initial_value and v != self._initial_value[k]):
                 diff[k] = v
         for k in set(self._initial_value.keys()) - set(current_state.keys()):
@@ -244,7 +260,7 @@ class EntityManager(object):
             self._registry[id(entity)] = PersistedEntity(entity, state=state, index=self._index)
 
     def _execute_callbacks(self, actions, type):
-        for persisted_entity, stmt in actions.iteritems():
+        for persisted_entity, stmt in six.iteritems(actions):
             action = stmt['_op_type']
             callback_func_name = type + '_' + action
             if hasattr(persisted_entity._entity, callback_func_name):
