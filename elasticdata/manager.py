@@ -249,9 +249,10 @@ class EntityManager(object):
     def get_repository(self, repository):
         app, repository_class_name = repository.split(':')
         if app not in settings.INSTALLED_APPS:
-            app = filter(lambda _app: _app.endswith(app), settings.INSTALLED_APPS)
-            if not app:
+            founded_app = filter(lambda _app: _app.endswith(app), settings.INSTALLED_APPS)
+            if not founded_app:
                 raise RepositoryError('Given application {app} are not in INSTALLED_APPS'.format(app=app))
+            app = founded_app[0]
         try:
             module = import_module(app + '.' + 'repositories')
         except ImportError:
@@ -262,7 +263,7 @@ class EntityManager(object):
                     repository_class_name=repository_class_name, app=app
                 ))
         repository_class = getattr(module, repository_class_name)
-        if not isinstance(repository_class, BaseRepository):
+        if not issubclass(repository_class, BaseRepository):
             raise RepositoryError('Custom repository must be subclass of BaseRepository')
         return repository_class(self)
 
