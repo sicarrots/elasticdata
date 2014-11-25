@@ -187,12 +187,13 @@ class EntityManager(object):
             action.reset_state()
         self._execute_callbacks(actions, 'post')
 
-    def find(self, _id, _type, scope=None):
-        kwargs = {'id': _id, 'index': self._index, 'doc_type': _type.get_type()}
+    def find(self, _id, _type, scope=None, **kwargs):
+        params = {'id': _id, 'index': self._index, 'doc_type': _type.get_type()}
         if scope:
-            kwargs['_source'] = _type.get_fields(scope)
+            params['_source'] = _type.get_fields(scope)
+        params.update(kwargs)
         try:
-            _data = self.es.get(**kwargs)
+            _data = self.es.get(**params)
         except TransportError as e:  # TODO: the might be other errors like server unavaliable
             raise EntityNotFound('Entity {type} {_id} not found.'.format(type=_type.get_type(), _id=_id), e)
         source = _data['_source']
@@ -201,12 +202,13 @@ class EntityManager(object):
         self._persist(entity, state=UPDATE)
         return entity
 
-    def find_many(self, _ids, _type, scope=None):
-        kwargs = {'body': {'ids': _ids}, 'index': self._index}
+    def find_many(self, _ids, _type, scope=None, **kwargs):
+        params = {'body': {'ids': _ids}, 'index': self._index}
         if scope:
-            kwargs['_source'] = _type.get_fields(scope)
+            params['_source'] = _type.get_fields(scope)
+        params.update(kwargs)
         try:
-            _data = self.es.mget(**kwargs)
+            _data = self.es.mget(**params)
         except TransportError as e:  # TODO: the might be other errors like server unavaliable
             raise EntityNotFound('Entity {type} {_id} not found.'.format(
                 type=_type.get_type(), _id=', '.join(_ids)), e)
@@ -219,12 +221,12 @@ class EntityManager(object):
             entities.append(entity)
         return entities
 
-    def query(self, query, _type, scope=None):
-        kwargs = {}
+    def query(self, query, _type, scope=None, **kwargs):
+        params = {}
         if scope:
-            kwargs['_source'] = _type.get_fields(scope)
+            params['_source'] = _type.get_fields(scope)
         try:
-            data = self.es.search(index=self._index, doc_type=_type.get_type(), body=query.update(kwargs))
+            data = self.es.search(index=self._index, doc_type=_type.get_type(), body=query, **kwargs)
         except TransportError as e:
             raise RepositoryError('Transport returned error', cause=e)
         entities = []
@@ -237,8 +239,8 @@ class EntityManager(object):
             entities.append(entity)
         return entities, without(['hits'], data, move_up={'hits': ['max_score', 'total']})
 
-    def query_one(self, query, _type, scope=None):
-        entities, meta = self.query(query, _type, scope)
+    def query_one(self, query, _type, scope=None, **kwargs):
+        entities, meta = self.query(query, _type, scope, **kwargs)
         if len(entities) == 1:
             return entities[0]
         raise RepositoryError('Expected one result, found {num}'.format(num=len(entities)))
