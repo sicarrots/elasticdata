@@ -63,9 +63,10 @@ class PersistedEntity(object):
             self.reset_state()
         self.state = state
         self._index = index
-        self._registry = {}
+        self._diff = None
 
-    def get_stmt(self):
+    @property
+    def stmt(self):
         if self.state == ADD:
             return self._add()
         elif self.state == UPDATE:
@@ -73,11 +74,29 @@ class PersistedEntity(object):
         elif self.state == REMOVE:
             return self._remove()
 
+    def is_action_needed(self):
+        if self.state == UPDATE:
+            if 'id' not in self._entity:
+                return False
+            if self.diff is None:
+                return False
+        elif self.state == REMOVE:
+            if 'id' not in self._entity:
+                return False
+        return True
+
+    @property
+    def diff(self):
+        if self._diff is None:
+            self._update_diff()
+        return self._diff
+
     def reset_state(self):
         self._initial_value = self._entity.to_storage()
         if 'id' in self._initial_value:
             del self._initial_value['id']
-        self.state = UPDATE
+        self.state = UPDATE  # TODO what when item is removed?
+        self._diff = None
 
     def set_id(self, _id):
         self._entity['id'] = _id
@@ -102,24 +121,20 @@ class PersistedEntity(object):
         return stmt
 
     def _update(self):
-        if 'id' not in self._entity:
-            return None
         if self._entity._meta['timestamps']:
             self._entity['updated_at'] = datetime.now()
-        diff = self._update_diff()
-        if not diff:
+        self._update_diff()
+        if not self.diff:
             return None
         return {
             '_op_type': 'update',
             '_index': self._index,
             '_type': self._entity.type,
             '_id': self._entity['id'],
-            'doc': diff
+            'doc': self.diff
         }
 
     def _remove(self):
-        if 'id' not in self._entity:
-            return None
         return {
             '_op_type': 'delete',
             '_index': self._index,
@@ -137,7 +152,7 @@ class PersistedEntity(object):
                 diff[k] = v
         for k in set(self._initial_value.keys()) - set(current_state.keys()):
             diff[k] = None
-        return diff
+        self._diff = diff or None
 
 
 class EntityManager(object):
@@ -158,18 +173,19 @@ class EntityManager(object):
         self._persist(entity, state=REMOVE)
 
     def flush(self):
-        actions = OrderedDict()
-        for pe in self._registry.itervalues():
-            stmt = pe.get_stmt()
-            if stmt:
-                actions[pe] = stmt
+        actions = []
+        for persisted_entity in six.itervalues(self._registry):
+            if persisted_entity.is_action_needed():
+                actions.append(persisted_entity)
         self._execute_callbacks(actions, 'pre')
-        blk = [result for result in helpers.streaming_bulk(self.es, actions.itervalues())]  # TODO: exceptions?
-        for i, pe in enumerate(actions.iterkeys()):
-            if 'create' in blk[i][1]:
-                pe.set_id(blk[i][1]['create']['_id'])
-            pe.reset_state()
+        bulk_results = [result for result in helpers.streaming_bulk(self.es, map(lambda a: a.stmt, actions))]
+        # TODO: checking exceptions in bulk_results
+        for i, persisted_entity in enumerate(actions):
+            if 'create' in bulk_results[i][1]:
+                persisted_entity.set_id(bulk_results[i][1]['create']['_id'])
         self._execute_callbacks(actions, 'post')
+        for action in actions:
+            action.reset_state()
 
     def find(self, _id, _type, scope=None):
         kwargs = {'id': _id, 'index': self._index, 'doc_type': _type.get_type()}
@@ -260,8 +276,8 @@ class EntityManager(object):
             self._registry[id(entity)] = PersistedEntity(entity, state=state, index=self._index)
 
     def _execute_callbacks(self, actions, type):
-        for persisted_entity, stmt in six.iteritems(actions):
-            action = stmt['_op_type']
+        for persisted_entity in actions:
+            action = persisted_entity.stmt['_op_type']
             callback_func_name = type + '_' + action
             if hasattr(persisted_entity._entity, callback_func_name):
                 getattr(persisted_entity._entity, callback_func_name)(self)

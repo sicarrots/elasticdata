@@ -31,10 +31,10 @@ class ManagerTestType(Type):
 
 class ManagerCallbacksTestType(Type):
     def pre_create(self, em):
-        pass
+        self['pre_create'] = self.get('foo', None)
 
     def pre_update(self, em):
-        pass
+        self['pre_update'] = self.get('foo', None)
 
     def pre_delete(self, em):
         pass
@@ -70,25 +70,29 @@ class PersistedEntityTestCase(TestCase):
     def test_new_entity(self):
         e = ManagerTestType({'foo': 'bar'})
         pe = PersistedEntity(e)
-        self.assertDictEqual(pe.get_stmt(), {'_index': 'default', '_source': {'foo': 'bar'},
-                                             '_type': 'manager_test_type', '_op_type': 'create'})
+        self.assertTrue(pe.is_action_needed())
+        self.assertDictEqual(pe.stmt, {'_index': 'default', '_source': {'foo': 'bar'},
+                                       '_type': 'manager_test_type', '_op_type': 'create'})
         e = ManagerTestType({'foo': 'bar', 'id': 1})
         pe = PersistedEntity(e)
-        self.assertDictEqual(pe.get_stmt(),
+        self.assertTrue(pe.is_action_needed())
+        self.assertDictEqual(pe.stmt,
                              {'_index': 'default', '_source': {'foo': 'bar'}, '_type': 'manager_test_type',
                               '_id': 1, '_op_type': 'create'})
         e = ManagerTestType({'foo': 'bar', 'id': 1, '_parent': '2'})
         pe = PersistedEntity(e)
-        self.assertDictEqual(pe.get_stmt(),
+        self.assertTrue(pe.is_action_needed())
+        self.assertDictEqual(pe.stmt,
                              {'_index': 'default', '_source': {'foo': 'bar'},
                               '_type': 'manager_test_type', '_id': 1, '_parent': '2', '_op_type': 'create'})
 
     def test_update_entity(self):
         e = ManagerTestType({'foo': 'bar', 'id': 1})
         pe = PersistedEntity(e, state=UPDATE)
-        self.assertIsNone(pe.get_stmt())
+        self.assertFalse(pe.is_action_needed())
         e['bar'] = 'baz'
-        self.assertDictEqual(pe.get_stmt(), {
+        self.assertTrue(pe.is_action_needed())
+        self.assertDictEqual(pe.stmt, {
             '_id': 1,
             '_index': 'default',
             '_op_type': 'update',
@@ -96,9 +100,10 @@ class PersistedEntityTestCase(TestCase):
             'doc': {'bar': 'baz'}
         })
         pe.reset_state()
-        self.assertIsNone(pe.get_stmt())
+        self.assertFalse(pe.is_action_needed())
         e['foo'] = 'baz'
-        self.assertDictEqual(pe.get_stmt(), {
+        self.assertTrue(pe.is_action_needed())
+        self.assertDictEqual(pe.stmt, {
             '_id': 1,
             '_index': 'default',
             '_op_type': 'update',
@@ -106,9 +111,10 @@ class PersistedEntityTestCase(TestCase):
             'doc': {'foo': 'baz'}
         })
         pe.reset_state()
-        self.assertIsNone(pe.get_stmt())
+        self.assertFalse(pe.is_action_needed())
         del e['bar']
-        self.assertDictEqual(pe.get_stmt(), {
+        self.assertTrue(pe.is_action_needed())
+        self.assertDictEqual(pe.stmt, {
             '_id': 1,
             '_index': 'default',
             '_op_type': 'update',
@@ -116,17 +122,18 @@ class PersistedEntityTestCase(TestCase):
             'doc': {'bar': None}
         })
         pe.reset_state()
-        self.assertIsNone(pe.get_stmt())
+        self.assertFalse(pe.is_action_needed())
         e['foo'] = 'baz'
-        self.assertIsNone(pe.get_stmt())
+        self.assertFalse(pe.is_action_needed())
 
     def test_delete_entity(self):
         e = ManagerTestType({'foo': 'bar'})
         pe = PersistedEntity(e, state=REMOVE)
-        self.assertIsNone(pe.get_stmt())
+        self.assertFalse(pe.is_action_needed())
         e = ManagerTestType({'foo': 'bar', 'id': '1'})
         pe = PersistedEntity(e, state=REMOVE)
-        self.assertDictEqual(pe.get_stmt(), {
+        self.assertTrue(pe.is_action_needed())
+        self.assertDictEqual(pe.stmt, {
             '_id': '1',
             '_index': 'default',
             '_op_type': 'delete',
@@ -304,12 +311,13 @@ class EntityManagerTestCase(TestCase):
         self.assertTrue(e['created_at'] < e['updated_at'])
 
     def test_pre_create_callback(self):
-        with patch.object(ManagerCallbacksTestType, 'pre_create') as mock:
-            em = self.em
-            e = ManagerCallbacksTestType({'foo': 'bar'})
-            em.persist(e)
-            em.flush()
-            mock.assert_called_with(em)
+        em = self.em
+        e = ManagerCallbacksTestType({'foo': 'bar'})
+        em.persist(e)
+        em.flush()
+        em2 = self.em
+        e2 = em2.find(e['id'], ManagerCallbacksTestType)
+        self.assertEqual(e2['pre_create'], 'bar')
 
     def test_post_create_callback(self):
         with patch.object(ManagerCallbacksTestType, 'post_create') as mock:
@@ -320,14 +328,15 @@ class EntityManagerTestCase(TestCase):
             mock.assert_called_with(em)
 
     def test_pre_update_callback(self):
-        with patch.object(ManagerCallbacksTestType, 'pre_update') as mock:
-            em = self.em
-            e = ManagerCallbacksTestType({'foo': 'bar'})
-            em.persist(e)
-            em.flush()
-            e['bar'] = 'baz'
-            em.flush()
-            mock.assert_called_with(em)
+        em = self.em
+        e = ManagerCallbacksTestType({'foo': 'bar'})
+        em.persist(e)
+        em.flush()
+        e['bar'] = 'baz'
+        em.flush()
+        em2 = self.em
+        e2 = em2.find(e['id'], ManagerCallbacksTestType)
+        self.assertEqual(e2['pre_update'], 'bar')
 
     def test_post_update_callback(self):
         with patch.object(ManagerCallbacksTestType, 'post_update') as mock:
