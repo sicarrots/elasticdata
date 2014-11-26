@@ -5,7 +5,6 @@ import copy
 from collections import MutableMapping
 from abc import ABCMeta
 from six import add_metaclass
-from dateutil.parser import parse
 from inflection import underscore
 
 
@@ -28,10 +27,7 @@ class TypeMeta(ABCMeta):
             if hasattr(attrs['Meta'], 'scopes'):
                 meta['scopes'].update(attrs['Meta'].scopes)
             if hasattr(attrs['Meta'], 'timestamps'):
-                coerce_timestamp = lambda self, value, context: parse(value)
                 meta['timestamps'] = attrs['Meta'].timestamps
-                attrs['get_created_at'] = coerce_timestamp
-                attrs['get_updated_at'] = coerce_timestamp
         attrs['_meta'] = copy.deepcopy(meta)
         return super(TypeMeta, mcs).__new__(mcs, name, bases, attrs)
 
@@ -43,35 +39,43 @@ class Type(MutableMapping):
         self._errors = {}
         self._scope = scope
 
-    def to_storage(self, context=None):
+    def to_storage(self, *args, **kwargs):
         keys = self._get_keys()
         data = {}
         for key in keys:
-            func = getattr(self, 'repr_' + key, lambda val, ctx: val)
-            data[key] = func(self._data.get(key, None), context)
+            value = self._data.get(key, None)
+            func = getattr(self, 'repr_' + key, None)
+            if func is not None:
+                data[key] = func(value, *args, **kwargs)
+            else:
+                data[key] = value
         return data
 
-    def to_representation(self, context=None):
+    def to_representation(self, *args, **kwargs):
         keys = self._get_keys()
         data = {}
         for key in keys:
-            func = getattr(self, 'get_' + key, lambda val, ctx: val)
-            data[key] = func(self._data.get(key, None), context)
+            func = getattr(self, 'get_' + key, None)
+            value = self._data.get(key, None)
+            if func is not None:
+                data[key] = func(value, *args, **kwargs)
+            else:
+                data[key] = value
         return data
 
-    def is_valid(self, context=None):
+    def is_valid(self, *args, **kwargs):
         self._errors = {}
         keys = self._get_keys()
         for key in keys:
             if hasattr(self, 'validate_' + key):
                 try:
-                    getattr(self, 'validate_' + key)(self._data.get(key, None), context)
-                except ValidationError, e:
+                    getattr(self, 'validate_' + key)(self._data.get(key, None), *args, **kwargs)
+                except ValidationError as e:
                     self.errors[key] = e
         if hasattr(self, 'validate'):
             try:
-                getattr(self, 'validate')(self._data, context)
-            except ValidationError, e:
+                getattr(self, 'validate')(self._data, *args, **kwargs)
+            except ValidationError as e:
                 self._errors['_general'] = e
         if self._errors:
             return False

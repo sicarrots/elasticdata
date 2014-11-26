@@ -13,17 +13,17 @@ class TestType(Type):
             'large': ('foo', 'bar', 'baz')
         }
 
-    def repr_foo(self, value, context):
+    def repr_foo(self, value):
         return 'repr({value})'.format(value=value)
 
-    def get_foo(self, value, context):
+    def get_foo(self, value):
         return 'get({value})'.format(value=value)
 
-    def validate_bar(self, value, context):
+    def validate_bar(self, value):
         if value is None:
             raise ValidationError('bar cannot be None')
 
-    def validate(self, attributes, context):
+    def validate(self, attributes):
         if attributes.get('foo', None) != attributes.get('bar', None):
             raise ValidationError('foo must be bar')
 
@@ -41,18 +41,18 @@ class InheritedTimestampsTestType(TimestampedType):
 
 
 class ContextTestType(TestType):
-    def get_foo(self, value, context):
-        return context
+    def get_foo(self, value, *args, **kwargs):
+        return kwargs['context']
 
-    def repr_foo(self, value, context):
-        return context
+    def repr_foo(self, value, *args, **kwargs):
+        return kwargs['context']
 
-    def validate_foo(self, value, context):
-        if not context:
+    def validate_foo(self, value, *args, **kwargs):
+        if not kwargs['context']:
             raise ValidationError()
 
-    def validate(self, attributes, context):
-        if not context:
+    def validate(self, attributes, *args, **kwargs):
+        if not kwargs['context']:
             raise ValidationError()
 
 
@@ -137,8 +137,8 @@ class TypeTestCase(TestCase):
 
     def test_passing_context(self):
         te = ContextTestType({'foo': 'bar'})
-        self.assertDictEqual({'foo': 'value from context'}, te.to_representation('value from context'))
-        self.assertDictEqual({'foo': 'context'}, te.to_storage('context'))
-        self.assertFalse(te.is_valid(False))
+        self.assertDictEqual({'foo': 'value from context'}, te.to_representation(context='value from context'))
+        self.assertDictEqual({'foo': 'context'}, te.to_storage(context='context'))
+        self.assertFalse(te.is_valid(context=False))
         self.assertEqual(len(te.errors), 2)
-        self.assertTrue(te.is_valid(True))
+        self.assertTrue(te.is_valid(context=True))

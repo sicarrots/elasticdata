@@ -5,6 +5,7 @@ import random
 import string
 from unittest import TestCase
 from mock import patch
+from datetime import datetime
 from elasticsearch import Elasticsearch
 
 from elasticdata.manager import (
@@ -297,7 +298,7 @@ class EntityManagerTestCase(TestCase):
         em.persist(e)
         em.flush()
         em.get_client().indices.refresh(index=self._index)
-        fe = em2.query_one({'query': {'term': {'foo': {'value': 'bar'}}}}, ManagerTestType, scope='small')
+        fe = em2.query_one({'query': {'term': {'foo': {'value': 'value'}}}}, ManagerTestType, scope='small')
         self.assertDictEqual({'foo': 'value'}, fe.to_representation())
 
     def test_timestamps(self):
@@ -305,10 +306,15 @@ class EntityManagerTestCase(TestCase):
         e = TimestampedType({'foo': 'bar'})
         em.persist(e)
         em.flush()
+        self.assertIsInstance(e['created_at'], datetime)
+        self.assertIsInstance(e['updated_at'], datetime)
         self.assertEqual(e['created_at'], e['updated_at'])
         e['baz'] = 'bar'
         em.flush()
         self.assertTrue(e['created_at'] < e['updated_at'])
+        values = e.to_representation()
+        self.assertIsInstance(values['created_at'], datetime)
+        self.assertIsInstance(values['updated_at'], datetime)
 
     def test_pre_create_callback(self):
         em = self.em
