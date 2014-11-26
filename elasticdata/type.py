@@ -95,6 +95,10 @@ class Type(MutableMapping):
             return self._meta['scopes'][self._scope]
         return None
 
+    @property
+    def scope(self):
+        return self._scope
+
     @classmethod
     def get_fields(cls, scope):
         if scope and scope in cls._meta['scopes']:

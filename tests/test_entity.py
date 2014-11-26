@@ -112,6 +112,8 @@ class TypeTestCase(TestCase):
         self.assertDictEqual(te_small.to_storage(), {'foo': 'repr(bar)', 'bar': 'baz'})
         self.assertDictEqual(te_large.to_representation(), {'foo': 'get(bar)', 'bar': 'baz', 'baz': 'foo'})
         self.assertDictEqual(te_large.to_storage(), {'foo': 'repr(bar)', 'bar': 'baz', 'baz': 'foo'})
+        self.assertEqual(te_small.scope, 'small')
+        self.assertEqual(te_large.scope, 'large')
 
     def test_scope_inheritance(self):
         te_small = ExtendedTestType(self.DATA, scope='small')
