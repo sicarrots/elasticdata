@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 import six
+import copy
 from importlib import import_module
 from django.conf import settings
 from elasticsearch import Elasticsearch, helpers, TransportError
@@ -91,7 +92,7 @@ class PersistedEntity(object):
         return self._diff
 
     def reset_state(self):
-        self._initial_value = self._entity.to_storage()
+        self._initial_value = copy.deepcopy(self._entity.to_storage())  # TODO: add test
         if 'id' in self._initial_value:
             del self._initial_value['id']
         self.last_state = self.state
@@ -126,13 +127,19 @@ class PersistedEntity(object):
         self._update_diff()
         if not self.diff:
             return None
-        return {
+        diff = self.diff
+        if '_parent' in diff:
+            del diff['_parent']
+        stmt = {
             '_op_type': 'update',
             '_index': self._index,
             '_type': self._entity.type,
             '_id': self._entity['id'],
-            'doc': self.diff
+            'doc': diff
         }
+        if '_parent' in self._entity:
+            stmt['_parent'] = self._entity['_parent']
+        return stmt
 
     def _remove(self):
         return {
