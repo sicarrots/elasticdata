@@ -38,7 +38,7 @@ class Type(MutableMapping):
         self._data = data or {}
         self._errors = {}
         self._scope = scope
-        self._highligt = highlight
+        self._highlight = highlight
 
     def to_storage(self, *args, **kwargs):
         keys = self._get_keys()
@@ -102,7 +102,7 @@ class Type(MutableMapping):
 
     @property
     def highlight(self):
-        return self._highligt
+        return self._highlight
 
     @classmethod
     def get_fields(cls, scope):
