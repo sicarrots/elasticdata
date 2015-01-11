@@ -144,3 +144,9 @@ class TypeTestCase(TestCase):
         self.assertFalse(te.is_valid(context=False))
         self.assertEqual(len(te.errors), 2)
         self.assertTrue(te.is_valid(context=True))
+
+    def test_highlight(self):
+        te = TestType(highlight={'field': 'data'})
+        self.assertEqual(te.highlight, {'field': 'data'})
+        te = TestType()
+        self.assertIsNone(te.highlight)

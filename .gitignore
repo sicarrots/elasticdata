@@ -55,3 +55,6 @@ target/
 
 # Development tools
 .idea
+
+# System files
+.directory

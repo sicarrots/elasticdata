@@ -223,7 +223,7 @@ class EntityManager(object):
         for _entity in _data['docs']:
             source = _entity['_source']
             source['id'] = _entity['_id']
-            entity = _type(source, scope)
+            entity = _type(source, scope, _entity.get('highlight'))
             self._persist(entity, state=UPDATE)
             entities.append(entity)
         return entities
@@ -241,7 +241,7 @@ class EntityManager(object):
             source = record['_source']
             source['id'] = record['_id']
             source['_score'] = record['_score']
-            entity = _type(source, scope)
+            entity = _type(source, scope, record.get('highlight'))
             self._persist(entity, state=UPDATE)
             entities.append(entity)
         return entities, without(['hits'], data, move_up={'hits': ['max_score', 'total']})

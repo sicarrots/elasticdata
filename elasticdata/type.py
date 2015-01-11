@@ -34,10 +34,11 @@ class TypeMeta(ABCMeta):
 
 @add_metaclass(TypeMeta)
 class Type(MutableMapping):
-    def __init__(self, data=None, scope=None):
+    def __init__(self, data=None, scope=None, highlight=None):
         self._data = data or {}
         self._errors = {}
         self._scope = scope
+        self._highligt = highlight
 
     def to_storage(self, *args, **kwargs):
         keys = self._get_keys()
@@ -98,6 +99,10 @@ class Type(MutableMapping):
     @property
     def scope(self):
         return self._scope
+
+    @property
+    def highlight(self):
+        return self._highligt
 
     @classmethod
     def get_fields(cls, scope):
