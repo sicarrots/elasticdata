@@ -142,12 +142,15 @@ class PersistedEntity(object):
         return stmt
 
     def _remove(self):
-        return {
+        stmt = {
             '_op_type': 'delete',
             '_index': self._index,
             '_type': self._entity.type,
             '_id': self._entity['id'],
         }
+        if '_parent' in self._entity:
+            stmt['_parent'] = self._entity['_parent']
+        return stmt
 
     def _update_diff(self):
         current_state = self._entity.to_storage()
