@@ -47,7 +47,8 @@ def without(keys, dct, move_up=None):
 class RepositoryError(Exception):
     def __init__(self, message, cause=None):
         #  Bu, exceptions chaining is avaliable only in py3.
-        super(RepositoryError, self).__init__(message + ', caused by ' + repr(cause))
+        message = cause and message + ', caused by ' + repr(cause) or message
+        super(RepositoryError, self).__init__(message)
         self.cause = cause
 
 
@@ -166,6 +167,10 @@ class PersistedEntity(object):
 
 
 class EntityManager(object):
+    @staticmethod
+    def entity_not_found_message(en_type, ids):
+        return 'Entities: "{type}" with ids: {ids} not found.'.format(type=en_type, ids=ids)
+
     def __init__(self, index='default', es_settings=None):
         if es_settings:
             self.es = Elasticsearch(**es_settings)
@@ -205,14 +210,16 @@ class EntityManager(object):
         try:
             _data = self.es.get(**params)
         except TransportError as e:  # TODO: the might be other errors like server unavaliable
-            raise EntityNotFound('Entity {type} {_id} not found.'.format(type=_type.get_type(), _id=_id), e)
+            raise EntityNotFound(self.entity_not_found_message(_type.get_type(), _id), e)
+        if not _data['found']:
+            raise EntityNotFound(self.entity_not_found_message(_type.get_type(), _id))
         source = _data['_source']
         source['id'] = _data['_id']
         entity = _type(source, scope)
         self._persist(entity, state=UPDATE)
         return entity
 
-    def find_many(self, _ids, _type, scope=None, **kwargs):
+    def find_many(self, _ids, _type, scope=None, complete_data=True, **kwargs):
         params = {'body': {'ids': _ids}, 'index': self._index}
         if scope:
             params['_source'] = _type.get_fields(scope)
@@ -220,15 +227,19 @@ class EntityManager(object):
         try:
             _data = self.es.mget(**params)
         except TransportError as e:  # TODO: the might be other errors like server unavaliable
-            raise EntityNotFound('Entity {type} {_id} not found.'.format(
-                type=_type.get_type(), _id=', '.join(_ids)), e)
+            raise EntityNotFound(self.entity_not_found_message(_type.get_type(), ', '.join(_ids)), e)
         entities = []
+        if complete_data:
+            invalid_items = map(lambda elem: elem['_id'], filter(lambda elem: not elem['found'], _data['docs']))
+            if invalid_items:
+                raise EntityNotFound(self.entity_not_found_message(_type.get_type(), ', '.join(invalid_items)))
         for _entity in _data['docs']:
-            source = _entity['_source']
-            source['id'] = _entity['_id']
-            entity = _type(source, scope, _entity.get('highlight'))
-            self._persist(entity, state=UPDATE)
-            entities.append(entity)
+            if _entity['found']:
+                source = _entity['_source']
+                source['id'] = _entity['_id']
+                entity = _type(source, scope)
+                self._persist(entity, state=UPDATE)
+                entities.append(entity)
         return entities
 
     def query(self, query, _type, scope=None, **kwargs):
