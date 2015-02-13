@@ -64,7 +64,7 @@ class HelpersTestCase(TestCase):
         grouped_data = group(data, type_getter)
         self.assertEqual(len(grouped_data['a']), 2)
         self.assertEqual(len(grouped_data['b']), 1)
-        self.assertListEqual(grouped_data.keys(), ['a', 'b'])
+        self.assertListEqual(sorted(grouped_data.keys()), ['a', 'b'])
 
 
 class PersistedEntityTestCase(TestCase):
