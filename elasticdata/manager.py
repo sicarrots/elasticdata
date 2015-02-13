@@ -193,11 +193,11 @@ class EntityManager(object):
             if persisted_entity.is_action_needed():
                 actions.append(persisted_entity)
         self._execute_callbacks(actions, 'pre')
-        bulk_results = [result for result in helpers.streaming_bulk(self.es, map(lambda a: a.stmt, actions))]
+        bulk_results = helpers.streaming_bulk(self.es, [a.stmt for a in actions])
         # TODO: checking exceptions in bulk_results
-        for i, persisted_entity in enumerate(actions):
-            if 'create' in bulk_results[i][1]:
-                persisted_entity.set_id(bulk_results[i][1]['create']['_id'])
+        for persisted_entity, result in zip(actions, bulk_results):
+            if 'create' in result[1]:
+                persisted_entity.set_id(result[1]['create']['_id'])
         for action in actions:
             action.reset_state()
         self._execute_callbacks(actions, 'post')
@@ -230,7 +230,7 @@ class EntityManager(object):
             raise EntityNotFound(self.entity_not_found_message(_type.get_type(), ', '.join(_ids)), e)
         entities = []
         if complete_data:
-            invalid_items = map(lambda elem: elem['_id'], filter(lambda elem: not elem['found'], _data['docs']))
+            invalid_items = [elem['_id'] for elem in _data['docs'] if not elem['found']]
             if invalid_items:
                 raise EntityNotFound(self.entity_not_found_message(_type.get_type(), ', '.join(invalid_items)))
         for _entity in _data['docs']:
@@ -272,7 +272,7 @@ class EntityManager(object):
     def get_repository(self, repository):
         app, repository_class_name = repository.split(':')
         if app not in settings.INSTALLED_APPS:
-            founded_app = filter(lambda _app: _app.endswith(app), settings.INSTALLED_APPS)
+            founded_app = [_app for _app in settings.INSTALLED_APPS if _app.endswith(app)]
             if not founded_app:
                 raise RepositoryError('Given application {app} are not in INSTALLED_APPS'.format(app=app))
             app = founded_app[0]

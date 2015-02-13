@@ -107,7 +107,7 @@ class Type(MutableMapping):
     @classmethod
     def get_fields(cls, scope):
         if scope and scope in cls._meta['scopes']:
-            return filter(lambda f: f != 'id', cls._meta['scopes'][scope])
+            return tuple(f for f in cls._meta['scopes'][scope] if f != 'id')
         return None
 
     @classmethod
@@ -132,7 +132,7 @@ class Type(MutableMapping):
     def _get_keys(self):
         if self._scope and self._scope in self._meta['scopes']:
             return self._meta['scopes'][self._scope]
-        return filter(lambda key: not key.startswith('_'), self._data.keys())
+        return [key for key in self._data.keys() if not key.startswith('_')]
 
 
 class TimestampedType(Type):

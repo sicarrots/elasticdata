@@ -172,9 +172,9 @@ class EntityManagerTestCase(TestCase):
         em = self.em
         e = ManagerTestType({'foo': 'bar'})
         em.persist(e)
-        self.assertEqual(em._registry.values()[0].state, ADD)
+        self.assertEqual(list(em._registry.values())[0].state, ADD)
         em.remove(e)
-        self.assertEqual(em._registry.values()[0].state, REMOVE)
+        self.assertEqual(list(em._registry.values())[0].state, REMOVE)
 
     def test_flush(self):
         em = self.em
