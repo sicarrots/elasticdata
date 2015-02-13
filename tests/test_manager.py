@@ -389,5 +389,5 @@ class EntityManagerTestCase(TestCase):
         em.persist(e)
         em.flush()
         em.get_client().indices.refresh(index=self._index)
-        fe, meta = em2.query({'query': {'match': {'foo': 'bar'}}, 'highlight': {'foo': {}}}, ManagerTestType)
-        self.assertDictEqual(fe.highlight, {'foo': ['<em>foo</em> bar']})
+        fe, meta = em2.query({'query': {'match': {'foo': 'bar'}}, 'highlight': {'fields': {'foo': {}}}}, ManagerTestType)
+        self.assertDictEqual(fe[0].highlight, {'foo': ['<em>bar</em> foo']})
