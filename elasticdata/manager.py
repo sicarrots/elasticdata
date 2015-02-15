@@ -47,7 +47,8 @@ def without(keys, dct, move_up=None):
 class RepositoryError(Exception):
     def __init__(self, message, cause=None):
         #  Bu, exceptions chaining is avaliable only in py3.
-        super(RepositoryError, self).__init__(message + ', caused by ' + repr(cause))
+        message = cause and message + ', caused by ' + repr(cause) or message
+        super(RepositoryError, self).__init__(message)
         self.cause = cause
 
 
@@ -166,6 +167,10 @@ class PersistedEntity(object):
 
 
 class EntityManager(object):
+    @staticmethod
+    def entity_not_found_message(en_type, ids):
+        return 'Entities: "{type}" with ids: {ids} not found.'.format(type=en_type, ids=ids)
+
     def __init__(self, index='default', es_settings=None):
         if es_settings:
             self.es = Elasticsearch(**es_settings)
@@ -188,11 +193,11 @@ class EntityManager(object):
             if persisted_entity.is_action_needed():
                 actions.append(persisted_entity)
         self._execute_callbacks(actions, 'pre')
-        bulk_results = [result for result in helpers.streaming_bulk(self.es, map(lambda a: a.stmt, actions))]
+        bulk_results = helpers.streaming_bulk(self.es, [a.stmt for a in actions])
         # TODO: checking exceptions in bulk_results
-        for i, persisted_entity in enumerate(actions):
-            if 'create' in bulk_results[i][1]:
-                persisted_entity.set_id(bulk_results[i][1]['create']['_id'])
+        for persisted_entity, result in zip(actions, bulk_results):
+            if 'create' in result[1]:
+                persisted_entity.set_id(result[1]['create']['_id'])
         for action in actions:
             action.reset_state()
         self._execute_callbacks(actions, 'post')
@@ -205,14 +210,16 @@ class EntityManager(object):
         try:
             _data = self.es.get(**params)
         except TransportError as e:  # TODO: the might be other errors like server unavaliable
-            raise EntityNotFound('Entity {type} {_id} not found.'.format(type=_type.get_type(), _id=_id), e)
+            raise EntityNotFound(self.entity_not_found_message(_type.get_type(), _id), e)
+        if not _data['found']:
+            raise EntityNotFound(self.entity_not_found_message(_type.get_type(), _id))
         source = _data['_source']
         source['id'] = _data['_id']
         entity = _type(source, scope)
         self._persist(entity, state=UPDATE)
         return entity
 
-    def find_many(self, _ids, _type, scope=None, **kwargs):
+    def find_many(self, _ids, _type, scope=None, complete_data=True, **kwargs):
         params = {'body': {'ids': _ids}, 'index': self._index}
         if scope:
             params['_source'] = _type.get_fields(scope)
@@ -220,15 +227,19 @@ class EntityManager(object):
         try:
             _data = self.es.mget(**params)
         except TransportError as e:  # TODO: the might be other errors like server unavaliable
-            raise EntityNotFound('Entity {type} {_id} not found.'.format(
-                type=_type.get_type(), _id=', '.join(_ids)), e)
+            raise EntityNotFound(self.entity_not_found_message(_type.get_type(), ', '.join(_ids)), e)
         entities = []
+        if complete_data:
+            invalid_items = [elem['_id'] for elem in _data['docs'] if not elem['found']]
+            if invalid_items:
+                raise EntityNotFound(self.entity_not_found_message(_type.get_type(), ', '.join(invalid_items)))
         for _entity in _data['docs']:
-            source = _entity['_source']
-            source['id'] = _entity['_id']
-            entity = _type(source, scope, _entity.get('highlight'))
-            self._persist(entity, state=UPDATE)
-            entities.append(entity)
+            if _entity['found']:
+                source = _entity['_source']
+                source['id'] = _entity['_id']
+                entity = _type(source, scope)
+                self._persist(entity, state=UPDATE)
+                entities.append(entity)
         return entities
 
     def query(self, query, _type, scope=None, **kwargs):
@@ -261,7 +272,7 @@ class EntityManager(object):
     def get_repository(self, repository):
         app, repository_class_name = repository.split(':')
         if app not in settings.INSTALLED_APPS:
-            founded_app = filter(lambda _app: _app.endswith(app), settings.INSTALLED_APPS)
+            founded_app = [_app for _app in settings.INSTALLED_APPS if _app.endswith(app)]
             if not founded_app:
                 raise RepositoryError('Given application {app} are not in INSTALLED_APPS'.format(app=app))
             app = founded_app[0]

@@ -64,7 +64,7 @@ class HelpersTestCase(TestCase):
         grouped_data = group(data, type_getter)
         self.assertEqual(len(grouped_data['a']), 2)
         self.assertEqual(len(grouped_data['b']), 1)
-        self.assertListEqual(grouped_data.keys(), ['a', 'b'])
+        self.assertListEqual(sorted(grouped_data.keys()), ['a', 'b'])
 
 
 class PersistedEntityTestCase(TestCase):
@@ -172,9 +172,9 @@ class EntityManagerTestCase(TestCase):
         em = self.em
         e = ManagerTestType({'foo': 'bar'})
         em.persist(e)
-        self.assertEqual(em._registry.values()[0].state, ADD)
+        self.assertEqual(list(em._registry.values())[0].state, ADD)
         em.remove(e)
-        self.assertEqual(em._registry.values()[0].state, REMOVE)
+        self.assertEqual(list(em._registry.values())[0].state, REMOVE)
 
     def test_flush(self):
         em = self.em
@@ -389,5 +389,5 @@ class EntityManagerTestCase(TestCase):
         em.persist(e)
         em.flush()
         em.get_client().indices.refresh(index=self._index)
-        fe, meta = em2.query({'query': {'match': {'foo': 'bar'}}, 'highlight': {'foo': {}}}, ManagerTestType)
-        self.assertDictEqual(fe.highlight, {'foo': ['<em>foo</em> bar']})
+        fe, meta = em2.query({'query': {'match': {'foo': 'bar'}}, 'highlight': {'fields': {'foo': {}}}}, ManagerTestType)
+        self.assertDictEqual(fe[0].highlight, {'foo': ['<em>bar</em> foo']})
