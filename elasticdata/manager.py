@@ -255,6 +255,8 @@ class EntityManager(object):
             source = record['_source']
             source['id'] = record['_id']
             source['_score'] = record['_score']
+            if '_explanation' in record:
+                source['_explanation'] = record['_explanation']
             entity = _type(source, scope, record.get('highlight'))
             self._persist(entity, state=UPDATE)
             entities.append(entity)
