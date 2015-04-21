@@ -220,7 +220,7 @@ class EntityManager(object):
         return entity
 
     def find_many(self, _ids, _type, scope=None, complete_data=True, **kwargs):
-        params = {'body': {'ids': _ids}, 'index': self._index}
+        params = {'body': {'ids': _ids}, 'index': self._index, 'doc_type': _type.get_type()}
         if scope:
             params['_source'] = _type.get_fields(scope)
         params.update(kwargs)
@@ -255,6 +255,8 @@ class EntityManager(object):
             source = record['_source']
             source['id'] = record['_id']
             source['_score'] = record['_score']
+            if '_explanation' in record:
+                source['_explanation'] = record['_explanation']
             entity = _type(source, scope, record.get('highlight'))
             self._persist(entity, state=UPDATE)
             entities.append(entity)
