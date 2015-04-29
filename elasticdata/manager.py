@@ -220,6 +220,11 @@ class EntityManager(object):
         return entity
 
     def find_many(self, _ids, _type, scope=None, complete_data=True, **kwargs):
+        try:
+            _ids = list(_ids)
+        except TypeError as e:
+            raise RepositoryError('Variable _ids has to be iterable', cause=e)
+
         params = {'body': {'ids': _ids}, 'index': self._index, 'doc_type': _type.get_type()}
         if scope:
             params['_source'] = _type.get_fields(scope)
@@ -246,8 +251,9 @@ class EntityManager(object):
         params = {}
         if scope:
             params['_source'] = _type.get_fields(scope)
+        params.update(kwargs)
         try:
-            data = self.es.search(index=self._index, doc_type=_type.get_type(), body=query, **kwargs)
+            data = self.es.search(index=self._index, doc_type=_type.get_type(), body=query, **params)
         except TransportError as e:
             raise RepositoryError('Transport returned error', cause=e)
         entities = []
