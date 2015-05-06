@@ -222,6 +222,10 @@ class EntityManagerTestCase(TestCase):
         fe = em2.find_many([e['id'], e2['id']], ManagerTestType)
         self.assertDictEqual(e.to_representation(), fe[0].to_representation())
         self.assertDictEqual(e2.to_representation(), fe[1].to_representation())
+        fe2 = em2.find_many({e2['id'], e['id']}, ManagerTestType)
+        def _ids_set(ents):
+            return {en['id'] for en in ents}
+        self.assertEqual(_ids_set(fe), _ids_set(fe2))
 
     def test_query(self):
         em = self.em
@@ -262,6 +266,9 @@ class EntityManagerTestCase(TestCase):
         self.assertDictEqual({'foo': 'bar', 'bar': 'baz'}, fe.to_representation())
         fe2 = em2.find(e['id'], ManagerTestType, scope='small')
         self.assertDictEqual({'foo': 'bar'}, fe2.to_representation())
+        # Real scope test
+        for key in ['bar', 'baz']:
+            self.assertFalse(key in fe2.keys())
 
     def test_find_many_scope(self):
         em = self.em
@@ -274,6 +281,10 @@ class EntityManagerTestCase(TestCase):
         fe = em2.find_many([e['id'], e2['id']], ManagerTestType, scope='small')
         self.assertDictEqual({'foo': 'bar'}, fe[0].to_representation())
         self.assertDictEqual({'foo': 'bar'}, fe[1].to_representation())
+        # Real scope test
+        for key in ['bar', 'baz']:
+            for e in fe:
+                self.assertFalse(key in e.keys())
 
     def test_query_scope(self):
         em = self.em
@@ -290,6 +301,10 @@ class EntityManagerTestCase(TestCase):
         self.assertDictEqual({'foo': 'value'}, fe[0].to_representation())
         self.assertDictEqual({'foo': 'value'}, fe[1].to_representation())
         self.assertDictEqual({'foo': 'value'}, fe[2].to_representation())
+        # Real scope test
+        for key in ['bar', 'baz']:
+            for e in fe:
+                self.assertFalse(key in e.keys())
 
     def test_query_one_scope(self):
         em = self.em
@@ -300,6 +315,10 @@ class EntityManagerTestCase(TestCase):
         em.get_client().indices.refresh(index=self._index)
         fe = em2.query_one({'query': {'term': {'foo': {'value': 'value'}}}}, ManagerTestType, scope='small')
         self.assertDictEqual({'foo': 'value'}, fe.to_representation())
+        # Real scope test
+        for key in ['bar', 'baz']:
+            self.assertFalse(key in fe.keys())
+
 
     def test_timestamps(self):
         em = self.em
