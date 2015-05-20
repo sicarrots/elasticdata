@@ -65,6 +65,7 @@ class PersistedEntity(object):
             self.reset_state()
         self._index = index
         self._diff = None
+        entity._persisted_entity = self
 
     @property
     def stmt(self):
@@ -187,13 +188,13 @@ class EntityManager(object):
     def remove(self, entity):
         self._persist(entity, state=REMOVE)
 
-    def flush(self):
+    def flush(self, refresh=False):
         actions = []
         for persisted_entity in six.itervalues(self._registry):
             if persisted_entity.is_action_needed():
                 actions.append(persisted_entity)
         self._execute_callbacks(actions, 'pre')
-        bulk_results = helpers.streaming_bulk(self.es, [a.stmt for a in actions])
+        bulk_results = helpers.streaming_bulk(self.es, [a.stmt for a in actions], refresh=refresh)
         # TODO: checking exceptions in bulk_results
         for persisted_entity, result in zip(actions, bulk_results):
             if 'create' in result[1]:

@@ -71,6 +71,7 @@ class PersistedEntityTestCase(TestCase):
     def test_new_entity(self):
         e = ManagerTestType({'foo': 'bar'})
         pe = PersistedEntity(e)
+        self.assertIs(e.__persisted_entity, pe)
         self.assertTrue(pe.is_action_needed())
         self.assertDictEqual(pe.stmt, {'_index': 'default', '_source': {'foo': 'bar'},
                                        '_type': 'manager_test_type', '_op_type': 'create'})
@@ -86,6 +87,7 @@ class PersistedEntityTestCase(TestCase):
         self.assertDictEqual(pe.stmt,
                              {'_index': 'default', '_source': {'foo': 'bar'},
                               '_type': 'manager_test_type', '_id': 1, '_parent': '2', '_op_type': 'create'})
+        self.assertEqual(e.diff, {'foo': 'bar'})
 
     def test_update_entity(self):
         e = ManagerTestType({'foo': 'bar', 'id': 1})
@@ -318,7 +320,6 @@ class EntityManagerTestCase(TestCase):
         # Real scope test
         for key in ['bar', 'baz']:
             self.assertFalse(key in fe.keys())
-
 
     def test_timestamps(self):
         em = self.em

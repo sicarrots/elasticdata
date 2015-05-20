@@ -104,6 +104,12 @@ class Type(MutableMapping):
     def highlight(self):
         return self._highlight
 
+    @property
+    def diff(self):
+        persisted_entity = getattr(self, '_persisted_entity', None)
+        if persisted_entity:
+            return persisted_entity.diff
+
     @classmethod
     def get_fields(cls, scope):
         if scope and scope in cls._meta['scopes']:
