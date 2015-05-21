@@ -58,7 +58,7 @@ class EntityNotFound(RepositoryError):
 
 class PersistedEntity(object):
     def __init__(self, entity, state=ADD, index='default'):
-        self._initial_value = None
+        self._initial_value = {}
         self._entity = entity
         self.state = self.last_state = state
         if state == UPDATE:
